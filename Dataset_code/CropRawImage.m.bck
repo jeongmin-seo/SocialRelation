@@ -80,21 +80,21 @@ crop_file_name = '_relation.mat';
 
 
 num_head_files = length(box_info_file_list);
-for cur_box_info_file = box_info_file_list(kTargetImageStartIndex:end)
+for gtIdx = kTargetImageStartIndex:num_head_files
     
     % read box information files for an input image
-    box_info_file_name = cur_box_info_file.name;
-    load(fullfile(kBoxInfoPath, box_info_file_name));  % <- bbox/ids is loaded
+    box_info_file_name = box_info_file_list(gtIdx).name;    
+    load(box_info_file_name);  % <- bbox is loaded
     
-    [r1, c1] = size(bbox, 1);
+    [r1, c1] = size(bbox);
     
     LabelData =[];
     
-    unique_ids = unique(ids);
-    [r2, c2] = size(unique_ids);
+    temp_id = unique(ids);
+    [r2, c2] = size(temp_id);
     
     % make inter case
-    Inter_case = nchoosek(unique_ids, 2);
+    Inter_case = nchoosek(temp_id,2);
     [r3, c3] = size(Inter_case);
     
     %make temp variable
@@ -110,12 +110,12 @@ for cur_box_info_file = box_info_file_list(kTargetImageStartIndex:end)
     for N1 = 1:r3
         
         %get croping information(for indexing plus '1')
-        unique_idsx1 = bbox(Inter_case(N1,1)+1,1:end-1);
-        unique_idsx2 = bbox(Inter_case(N1,2)+1,1:end-1);
+        temp_idx1 = bbox(Inter_case(N1,1)+1,1:end-1);
+        temp_idx2 = bbox(Inter_case(N1,2)+1,1:end-1);
         
         %croping images
-        temp_croped_head1 = imcrop(img,unique_idsx1);
-        temp_croped_head2 = imcrop(img,unique_idsx2);
+        temp_croped_head1 = imcrop(img,temp_idx1);
+        temp_croped_head2 = imcrop(img,temp_idx2);
         
         [a11,b11,c11]=size(temp_croped_head1);
         
