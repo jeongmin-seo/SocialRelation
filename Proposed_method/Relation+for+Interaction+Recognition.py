@@ -1,14 +1,11 @@
-
-# # Relation for Interaction group Recognition
-# ## Ver. Keras
-# ## 2017.04.05
+# Relation for Interaction group Recognition
+# Ver. Keras
+# 2018.03.02 - modified by Haanju Yoo -
 
 
 #########################################################
-# ## Load package
+# Load packages
 #########################################################
-
-
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
@@ -26,339 +23,204 @@ from keras.utils import np_utils
 import scipy.io as sio
 import numpy as np
 import keras.layers
+import os
 
-from IPython.display import SVG
+# from IPython.display import SVG
 from keras.utils.vis_utils import model_to_dot
-
 
 print('import packages complete')
 
 #########################################################
-# ## tensorboard setup
+# Pre-defines
+#########################################################
+kNumRelations = 8
+kRelationBasePath = '/home/user/Desktop/Workspace/relation'
+kInteractionBasePath = '/home/user/Desktop/Workspace/Interaction_relation'
+
+
+#########################################################
+# tensor board setup
 #########################################################
 tbCallBack = keras.callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
 
 
-# #########################################################
-# # ### Load Pre_Training data
-# #########################################################
+#########################################################
+# Load pre-training data
+#########################################################
+def load_pre_training_data(base_path=kRelationBasePath):
+    CelebA = dict()
+    CelebA['data'] = np.load(os.path.join(base_path, 'CeleData.npy'))
+    CelebaLabel = sio.loadmat(os.path.join(base_path, 'Celeba/celebalabel.mat'))
+    CelebaLabel = CelebaLabel['CelebaLabel']
+    CelebA['label'] = CelebaLabel.astype('float64')
 
-# CelebaData = np.load('/home/user/Desktop/Workspace/relation/CeleData.npy')
-# KaggleData = sio.loadmat('/home/user/Desktop/Workspace/relation/fer2013/mat/all/kaggleData.mat')
-# KaggleData = KaggleData['DATA']
-# KaggleData = KaggleData.astype('float64')
+    Kaggle = dict()
+    KaggleData = sio.loadmat(os.path.join(base_path, 'fer2013/mat/all/kaggleData.mat'))
+    KaggleData = KaggleData['DATA']
+    Kaggle['data'] = KaggleData.astype('float64')
+    KaggleLabel = sio.loadmat(os.path.join(base_path, 'fer2013/mat/all/kaggleLabel.mat'))
+    KaggleLabel = KaggleLabel['LABEL']
+    Kaggle['label'] = KaggleLabel.astype('float64')
 
-# CelebaLabel = sio.loadmat('/home/user/Desktop/Workspace/relation/Celeba/celebalabel.mat')
-# CelebaLabel = CelebaLabel['CelebaLabel']
-# CelebaLabel = CelebaLabel.astype('float64')
+    # select number of 20000 samples from each data set
+    pre_celeb_indices = np.arange(len(CelebA['data']))  # Get A Test Batch
+    np.random.shuffle(pre_celeb_indices)
+    pre_celeb_tr_indices = pre_celeb_indices[0:100000]
+    pre_celeb_te_indices = pre_celeb_indices[190000:202500]
 
-# KaggleLabel = sio.loadmat('/home/user/Desktop/Workspace/relation/fer2013/mat/all/kaggleLabel.mat')
-# KaggleLabel = KaggleLabel['LABEL']
-# KaggleLabel = KaggleLabel.astype('float64')
+    pre_kaggle_indices = np.arange(len(Kaggle['data']))
+    np.random.shuffle(pre_kaggle_indices)
+    pre_kaggle_tr_indices = pre_kaggle_indices[0:30000]
+    pre_kaggle_te_indices = pre_kaggle_indices[30000:35000]
 
-# #select number of 20000 samples from each data set
-# pre_celeb_indices = np.arange(len(CelebaData)) # Get A Test Batch
-# np.random.shuffle(pre_celeb_indices)
-# pre_celeb_tr_indices = pre_celeb_indices[0:100000]
-# pre_celeb_te_indices = pre_celeb_indices[190000:202500]
+    # Data = np.concatenate((CelebaData[pre_celeb_indices],KaggleData[pre_kaggle_indices]))
+    # label = np.concatenate((CelebaLabel[pre_celeb_indices], KaggleLabel[pre_kaggle_indices]))
 
-# pre_kaggle_indices = np.arange(len(KaggleData))
-# np.random.shuffle(pre_kaggle_indices)
-# pre_kaggle_tr_indices = pre_kaggle_indices[0:30000]
-# pre_kaggle_te_indices = pre_kaggle_indices[30000:35000]
+    # pre_training parameters
+    pre_trX = np.concatenate((CelebA['data'][pre_celeb_tr_indices], Kaggle['data'][pre_kaggle_tr_indices]))
+    pre_trY = np.concatenate((CelebA['label'][pre_celeb_tr_indices], Kaggle['label'][pre_kaggle_tr_indices]))
+    pre_teX = np.concatenate((CelebA['data'][pre_celeb_te_indices], Kaggle['data'][pre_kaggle_te_indices]))
+    pre_teY = np.concatenate((CelebA['label'][pre_celeb_te_indices], Kaggle['label'][pre_kaggle_te_indices]))
 
-# # Data = np.concatenate((CelebaData[pre_celeb_indices],KaggleData[pre_kaggle_indices]))
-# # label = np.concatenate((CelebaLabel[pre_celeb_indices], KaggleLabel[pre_kaggle_indices]))
+    pre_trX = pre_trX.reshape(-1, 48, 48, 1)  # 48x48x1 input img
+    pre_teX = pre_teX.reshape(-1, 48, 48, 1)  # 48x48x1 input img
 
-# # pre_training parameters
-# pre_trX = np.concatenate((CelebaData[pre_celeb_tr_indices],KaggleData[pre_kaggle_tr_indices]))
-# pre_trY = np.concatenate((CelebaLabel[pre_celeb_tr_indices],KaggleLabel[pre_kaggle_tr_indices]))
-# pre_teX = np.concatenate((CelebaData[pre_celeb_te_indices],KaggleData[pre_kaggle_te_indices]))
-# pre_teY = np.concatenate((CelebaLabel[pre_celeb_te_indices],KaggleLabel[pre_kaggle_te_indices]))
+    print('load pre training data complete!!')
 
-# pre_trX = pre_trX.reshape(-1, 48, 48, 1)  # 48x48x1 input img
-# pre_teX = pre_teX.reshape(-1, 48, 48, 1)  # 48x48x1 input img
-
-# print ('load pre training data complete!!')
-
-# #########################################################
-# # ### Load Relation data
-# #########################################################
-# Exp_tr1 = np.load('/home/user/Desktop/Workspace/relation/Exp_te1.npy')
-# Exp_tr2 = np.load('/home/user/Desktop/Workspace/relation/Exp_te2.npy')
-# Exp_te1 = np.load('/home/user/Desktop/Workspace/relation/Exp_tr1.npy')
-# Exp_te2 = np.load('/home/user/Desktop/Workspace/relation/Exp_tr2.npy')
-
-# Exp_teY = np.load('/home/user/Desktop/Workspace/relation/Exp_teY.npy')
-# Exp_trY = np.load('/home/user/Desktop/Workspace/relation/Exp_trY.npy')
-
-# Exp_trX1 = Exp_tr1.reshape(-1, 48, 48, 1)  # 48x48x1 input img
-# Exp_trX2 = Exp_tr2.reshape(-1, 48, 48, 1)  # 48x48x1 input img
-
-# Exp_teX1 = Exp_te1.reshape(-1, 48, 48, 1)  # 48x48x1 input img
-# Exp_teX2 = Exp_te2.reshape(-1, 48, 48, 1)  # 48x48x1 input 
-
-
-
-# #########################################################
-# # ## Load Interaction data, GT
-# #########################################################
-# GTjpg1 = sio.loadmat('./GT/Inter_group/GT2jpg1.mat')
-# GTjpg2 = sio.loadmat('./GT/Inter_group/GT2jpg2.mat')
-# GTjpg3 = sio.loadmat('./GT/Inter_group/GT2jpg3.mat')
-
-
-# #########################################################
-# # ### labeling face_attribute
-# #########################################################
-# [r3,c3] = pre_trY.shape
-# Face_attri_trY1 = pre_trY[:,0].reshape(r3,1)
-# Face_attri_trY2 = pre_trY[:,1].reshape(r3,1)
-# Face_attri_trY3 = pre_trY[:,2].reshape(r3,1)
-# Face_attri_trY4 = pre_trY[:,3].reshape(r3,1)
-# Face_attri_trY5 = pre_trY[:,4].reshape(r3,1)
-# Face_attri_trY6 = pre_trY[:,5].reshape(r3,1)
-# Face_attri_trY7 = pre_trY[:,6].reshape(r3,1)
-# Face_attri_trY8 = pre_trY[:,7].reshape(r3,1)
-# Face_attri_trY9 = pre_trY[:,8].reshape(r3,1)
-# Face_attri_trY10 = pre_trY[:,9].reshape(r3,1)
-# Face_attri_trY11 = pre_trY[:,10].reshape(r3,1)
-# Face_attri_trY12 = pre_trY[:,11].reshape(r3,1)
-# Face_attri_trY13 = pre_trY[:,12].reshape(r3,1)
-# Face_attri_trY14 = pre_trY[:,13].reshape(r3,1)
-# Face_attri_trY15 = pre_trY[:,14].reshape(r3,1)
-
-# [r4,c4] = pre_teY.shape
-# Face_attri_teY1 = pre_teY[:,0].reshape(r4,1)
-# Face_attri_teY2 = pre_teY[:,1].reshape(r4,1)
-# Face_attri_teY3 = pre_teY[:,2].reshape(r4,1)
-# Face_attri_teY4 = pre_teY[:,3].reshape(r4,1)
-# Face_attri_teY5 = pre_teY[:,4].reshape(r4,1)
-# Face_attri_teY6 = pre_teY[:,5].reshape(r4,1)
-# Face_attri_teY7 = pre_teY[:,6].reshape(r4,1)
-# Face_attri_teY8 = pre_teY[:,7].reshape(r4,1)
-# Face_attri_teY9 = pre_teY[:,8].reshape(r4,1)
-# Face_attri_teY10 = pre_teY[:,9].reshape(r4,1)
-# Face_attri_teY11 = pre_teY[:,10].reshape(r4,1)
-# Face_attri_teY12 = pre_teY[:,11].reshape(r4,1)
-# Face_attri_teY13 = pre_teY[:,12].reshape(r4,1)
-# Face_attri_teY14 = pre_teY[:,13].reshape(r4,1)
-# Face_attri_teY15 = pre_teY[:,14].reshape(r4,1)
-
-# #########################################################
-# # ### labeling Relation
-# #########################################################
-
-# [r1,c1] = Exp_trY.shape
-# Exp_trYr1 = Exp_trY[:,0].reshape(r1,1)
-# Exp_trYr2 = Exp_trY[:,1].reshape(r1,1)
-# Exp_trYr3 = Exp_trY[:,2].reshape(r1,1)
-# Exp_trYr4 = Exp_trY[:,3].reshape(r1,1)
-# Exp_trYr5 = Exp_trY[:,4].reshape(r1,1)
-# Exp_trYr6 = Exp_trY[:,5].reshape(r1,1)
-# Exp_trYr7 = Exp_trY[:,6].reshape(r1,1)
-# Exp_trYr8 = Exp_trY[:,7].reshape(r1,1)
-
-
-# [r2,c2] = Exp_teY.shape
-# Exp_teYr1 = Exp_teY[:,0].reshape(r2,1)
-# Exp_teYr2 = Exp_teY[:,1].reshape(r2,1)
-# Exp_teYr3 = Exp_teY[:,2].reshape(r2,1)
-# Exp_teYr4 = Exp_teY[:,3].reshape(r2,1)
-# Exp_teYr5 = Exp_teY[:,4].reshape(r2,1)
-# Exp_teYr6 = Exp_teY[:,5].reshape(r2,1)
-# Exp_teYr7 = Exp_teY[:,6].reshape(r2,1)
-# Exp_teYr8 = Exp_teY[:,7].reshape(r2,1)
-
-# print ('load fine data complete!!')
+    return dict(trainX=pre_trX, trainY=pre_trY, testX=pre_teX, testY=pre_teY)
 
 
 #########################################################
-# Expression Sequential model 
+# Load relation data
 #########################################################
+def load_relation_data(base_path=kRelationBasePath):
+    # TODO: have to figure out what data here mean
+    Exp_tr1 = np.load('/home/user/Desktop/Workspace/relation/Exp_te1.npy')
+    Exp_tr2 = np.load('/home/user/Desktop/Workspace/relation/Exp_te2.npy')
+    Exp_te1 = np.load('/home/user/Desktop/Workspace/relation/Exp_tr1.npy')
+    Exp_te2 = np.load('/home/user/Desktop/Workspace/relation/Exp_tr2.npy')
 
-Expression_model = Sequential()
+    Exp_teY = np.load('/home/user/Desktop/Workspace/relation/Exp_teY.npy')
+    Exp_trY = np.load('/home/user/Desktop/Workspace/relation/Exp_trY.npy')
 
-#layer 1
-Expression_model.add(Convolution2D(1,5,5, border_mode='same'
-                        ,input_shape=(48,48,1),activation='relu'))
-Expression_model.add(MaxPooling2D(pool_size=(2,2),padding='same'))
-Expression_model.add(BatchNormalization())
-Expression_model.add(Dropout(0.5))
+    Exp_trX1 = Exp_tr1.reshape(-1, 48, 48, 1)  # 48x48x1 input img
+    Exp_trX2 = Exp_tr2.reshape(-1, 48, 48, 1)  # 48x48x1 input img
 
-#layer 2
-Expression_model.add((Convolution2D(64,5,5,border_mode='same'
-                         ,activation='relu',)))
-Expression_model.add(MaxPooling2D(pool_size=(2,2),padding='same'))
-Expression_model.add(BatchNormalization())
-Expression_model.add(Dropout(0.5))
+    Exp_teX1 = Exp_te1.reshape(-1, 48, 48, 1)  # 48x48x1 input img
+    Exp_teX2 = Exp_te2.reshape(-1, 48, 48, 1)  # 48x48x1 input
 
 
-#layer 4
-Expression_model.add((Convolution2D(96,5,5,border_mode='same'
-                         ,activation='relu',)))
-Expression_model.add(MaxPooling2D(pool_size=(2,2),padding='same'))
-Expression_model.add(BatchNormalization())
-Expression_model.add(Dropout(0.5))
+#########################################################
+# Load interaction data and GT
+#########################################################
+def load_interaction_data_and_gt():
+    # TODO: have to figure out what GT here means
+    GTjpg1 = sio.loadmat('./GT/Inter_group/GT2jpg1.mat')
+    GTjpg2 = sio.loadmat('./GT/Inter_group/GT2jpg2.mat')
+    GTjpg3 = sio.loadmat('./GT/Inter_group/GT2jpg3.mat')
 
-#layer 5
-Expression_model.add((Convolution2D(256,5,5,border_mode='same'
-                         ,activation='relu',)))
-Expression_model.add(MaxPooling2D(pool_size=(2,2),padding='same'))
-Expression_model.add(BatchNormalization())
-Expression_model.add(Dropout(0.5))
 
-#layer 6
-Expression_model.add((Convolution2D(256,5,5,border_mode='same'
-                         ,activation='relu',)))
-Expression_model.add(MaxPooling2D(pool_size=(2,2),padding='same'))
-Expression_model.add(BatchNormalization())
-Expression_model.add(Dropout(0.5))
-Expression_model.add(Flatten())
+#########################################################
+# ### labeling face_attribute
+#########################################################
+def labeling_face_attribute(trainY, testY):
+    # originally Pre_trY and Pre_teY
+    num_train_samples = trainY.shape(1)
+    num_test_samples = testY.shape(1)
+    face_attribute_labels = dict(train=[], test=[])
+    for model_idx in range(15):
+        face_attribute_labels['train'].append(trainY[:, model_idx].reshape(num_train_samples, 1))
+        face_attribute_labels['test'].append(testY[:, model_idx].reshape(num_test_samples, 1))
+    return face_attribute_labels
 
-#layer 7
-Expression_model.add(Dense(2048,activation='relu'))
-Expression_model.add(BatchNormalization())
-Expression_model.add(Dropout(0.5))
+
+#########################################################
+# ### labeling Relation
+#########################################################
+def labeling_relation(trainY, testY):
+    # originally Exp_trYr[1~8] and Exp_teYr[1~8]
+    num_train_samples = trainY.shape(1)
+    num_test_samples = testY.shape(1)
+    y_for_relations = dict(train=[], test=[])
+    for relation_idx in range(kNumRelations):
+        y_for_relations['train'].append(trainY[:, relation_idx].reshape(num_train_samples, 1))
+        y_for_relations['test'].append(testY[:, relation_idx].reshape(num_test_samples, 1))
+    print ('load fine data complete!!')
+    return y_for_relations
+
+
+#########################################################
+# Build expression Sequential model
+#########################################################
+def build_base_network():
+    model_base_network = Sequential()
+
+    # layer 1
+    model_base_network.add(Convolution2D(1, 5, 5, border_mode='same', input_shape=(48, 48, 1), activation='relu'))
+    model_base_network.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
+    model_base_network.add(BatchNormalization())
+    model_base_network.add(Dropout(0.5))
+
+    # layer 2
+    model_base_network.add(Convolution2D(64, 5, 5, border_mode='same', activation='relu'))
+    model_base_network.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
+    model_base_network.add(BatchNormalization())
+    model_base_network.add(Dropout(0.5))
+
+    # TODO: where is layer 3??
+
+    # layer 4
+    model_base_network.add(Convolution2D(96, 5, 5, border_mode='same', activation='relu'))
+    model_base_network.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
+    model_base_network.add(BatchNormalization())
+    model_base_network.add(Dropout(0.5))
+
+    # layer 5
+    model_base_network.add(Convolution2D(256, 5, 5, border_mode='same', activation='relu'))
+    model_base_network.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
+    model_base_network.add(BatchNormalization())
+    model_base_network.add(Dropout(0.5))
+
+    # layer 6
+    model_base_network.add(Convolution2D(256, 5, 5, border_mode='same', activation='relu',))
+    model_base_network.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
+    model_base_network.add(BatchNormalization())
+    model_base_network.add(Dropout(0.5))
+    model_base_network.add(Flatten())
+
+    # layer 7
+    model_base_network.add(Dense(2048, activation='relu'))
+    model_base_network.add(BatchNormalization())
+    model_base_network.add(Dropout(0.5))
+
+    return model_base_network
 
 
 #########################################################
 # Expression model's last layer, 8kinds
 #########################################################
+def build_relation_network(base_network, num_expressions=15):
 
-Expression1 = Sequential()
-Expression1.add(Expression_model)
-Expression1.add(Dense(1,activation='sigmoid'))
+    expression_models = num_expressions * [Sequential()]
+    for cur_model in expression_models:
+        cur_model.add(base_network)
+        cur_model.add(Dense(1, activation='sigmoid'))
 
-Expression2 = Sequential()
-Expression2.add(Expression_model)
-Expression2.add(Dense(1,activation='sigmoid'))
+    return expression_models
 
-Expression3 = Sequential()
-Expression3.add(Expression_model)
-Expression3.add(Dense(1,activation='sigmoid'))
-
-
-Expression4 = Sequential()
-Expression4.add(Expression_model)
-Expression4.add(Dense(1,activation='sigmoid'))
-
-
-Expression5 = Sequential()
-Expression5.add(Expression_model)
-Expression5.add(Dense(1,activation='sigmoid'))
-
-
-Expression6 = Sequential()
-Expression6.add(Expression_model)
-Expression6.add(Dense(1,activation='sigmoid'))
-
-
-Expression7 = Sequential()
-Expression7.add(Expression_model)
-Expression7.add(Dense(1,activation='sigmoid'))
-
-
-Expression8 = Sequential()
-Expression8.add(Expression_model)
-Expression8.add(Dense(1,activation='sigmoid'))
-
-
-Expression9 = Sequential()
-Expression9.add(Expression_model)
-Expression9.add(Dense(1,activation='sigmoid'))
-
-
-Expression10 = Sequential()
-Expression10.add(Expression_model)
-Expression10.add(Dense(1,activation='sigmoid'))
-
-
-Expression11 = Sequential()
-Expression11.add(Expression_model)
-Expression11.add(Dense(1,activation='sigmoid'))
-
-Expression12 = Sequential()
-Expression12.add(Expression_model)
-Expression12.add(Dense(1,activation='sigmoid'))
-
-Expression13 = Sequential()
-Expression13.add(Expression_model)
-Expression13.add(Dense(1,activation='sigmoid'))
-
-Expression14 = Sequential()
-Expression14.add(Expression_model)
-Expression14.add(Dense(1,activation='sigmoid'))
-
-Expression15 = Sequential()
-Expression15.add(Expression_model)
-Expression15.add(Dense(1,activation='sigmoid'))
-
-
-
-#########################################################
-# Expression model optimization setting
-#########################################################
-
-Expression_opti = keras.optimizers.Adam(lr=1e-4,  beta_1=0.99,
-                                   beta_2=0.99, epsilon=1e-08, decay=1e-4)
-
-#Expression_model.compile(optimizer=Expression_opti
-#                    , loss='categorical_crossentropy'
-#                    , metrics=['accuracy'])
-#
-#Expression_model.fit(x=pre_trX, y=pre_trY,
-#                batch_size=120, epochs=400,verbose=1)
 
 #########################################################
 # Expression model compilation
 #########################################################
+def set_model_optimization_scheme(models):
+    model_optimizer = keras.optimizers.Adam(
+        lr=1e-4, beta_1=0.99, beta_2=0.99, epsilon=1e-08, decay=1e-4)
+    for cur_model in models:
+        cur_model.compile(optimizer=model_optimizer,
+                          loss='binary_crossentropy',
+                          metrics=['accuracy'])
+    return models
 
-Expression1.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression2.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression3.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression4.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression5.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression6.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression7.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression8.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression9.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression10.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression11.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression12.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression13.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression14.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
-Expression15.compile(optimizer=Expression_opti
-                          , loss='binary_crossentropy'
-                          , metrics=['accuracy'])
 
 # #########################################################
 # # Expression model fitting
@@ -425,9 +287,9 @@ Expression15.compile(optimizer=Expression_opti
 #########################################################
 #  Sequential final model like sudo siamese
 #########################################################
-#  delete last layer
+# TODO: delete last layer   <== ????
 
-## model setting
+# TODO: findout what final model represents for
 final_model = Sequential()
 final_model.add(Dense(2048,input_shape=(4096,), activation='relu'))
 final_model.add(BatchNormalization())
@@ -446,37 +308,11 @@ final_model.add(BatchNormalization())
 final_model.add(Dropout(0.5))
 
 # last layers, 8 relation
-Relation1_model = Sequential()
-Relation1_model.add(final_model)
-Relation1_model.add(Dense(1, activation='sigmoid'))
+relation_models = kNumRelations * [Sequential()]
+for cur_model in relation_models:
+    cur_model.add(final_model)
+    cur_model.add(Dense(1, activation='sigmoid'))
 
-Relation2_model = Sequential()
-Relation2_model.add(final_model)
-Relation2_model.add(Dense(1, activation='sigmoid'))
-
-Relation3_model = Sequential()
-Relation3_model.add(final_model)
-Relation3_model.add(Dense(1, activation='sigmoid'))
-
-Relation4_model = Sequential()
-Relation4_model.add(final_model)
-Relation4_model.add(Dense(1, activation='sigmoid'))
-
-Relation5_model = Sequential()
-Relation5_model.add(final_model)
-Relation5_model.add(Dense(1, activation='sigmoid'))
-
-Relation6_model = Sequential()
-Relation6_model.add(final_model)
-Relation6_model.add(Dense(1, activation='sigmoid'))
-
-Relation7_model = Sequential()
-Relation7_model.add(final_model)
-Relation7_model.add(Dense(1, activation='sigmoid'))
-
-Relation8_model = Sequential()
-Relation8_model.add(final_model)
-Relation8_model.add(Dense(1, activation='sigmoid'))
 
 #final_opti = keras.optimizers.Adam(lr=1e-6,  beta_1=0.99,
 #                                   beta_2=0.99, epsilon=1e-08, decay=1e-4)
@@ -512,74 +348,19 @@ intermediate_layer_model = Model(inputs=Expression_model.input,
 k1 = Face_layer_model.predict(Exp_trX1)
 k2 = Face_layer_model.predict(Exp_trX2)
 
-merged = np.concatenate((k1,k2),axis=1)
+merged = np.concatenate((k1, k2), axis=1)
 
 
-Relation_opti = keras.optimizers.Adam(lr=1e-4,  beta_1=0.99,
-                                   beta_2=0.99, epsilon=1e-08, decay=1e-4)
+relation_model_optimizer = keras.optimizers.Adam(
+    lr=1e-4,  beta_1=0.99,beta_2=0.99, epsilon=1e-08, decay=1e-4)
 
-Relation1_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
+for cur_model in relation_models:
+    cur_model.compile(optimizer=relation_model_optimizer,
+                      loos='binary_crossentropy',
+                      metrics=['accuracy'])
+    # TODO: set y to an appropriate set
+    cur_model.fit(x=merged, y=Exp_trYr_i, batch_size=120, epochs=400, verbose=1)
 
-# Relation1_model.fit(x=merged, y=Exp_trYr1,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation2_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation2_model.fit(x=merged, y=Exp_trYr2,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation3_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation3_model.fit(x=merged, y=Exp_trYr3,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation4_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation4_model.fit(x=merged, y=Exp_trYr4,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation5_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation5_model.fit(x=merged, y=Exp_trYr5,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation6_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation6_model.fit(x=merged, y=Exp_trYr6,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation7_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation7_model.fit(x=merged, y=Exp_trYr7,
-#                 batch_size=120, epochs=400,verbose=1)
-
-
-Relation8_model.compile(optimizer=Relation_opti
-                    , loss='binary_crossentropy'
-                    , metrics=['accuracy'])
-
-# Relation8_model.fit(x=merged, y=Exp_trYr8,
-#                 batch_size=120, epochs=400,verbose=1)
 
 # #########################################################
 # #  Relation model evaluation
@@ -728,8 +509,15 @@ Relation8_model.compile(optimizer=Relation_opti
 #########################################################
 # PART. social relation predicting for grouping
 #########################################################
+def load_models(base_path=kInteractionBasePath):
+    # load final model
+    final_model_json_file = open(os.path.join(base_path, 'final_model_json.json'), 'r')
+    final_model_json = final_model_json_file.read()
+    final_model_json_file.close()
+    final_model = model_from_json(final_model_json)
+    final_model.load_weights(os.path.join(base_path, 'final_model.h5'))
 
-# load json and create model
+# load final model
 json_file = open('/home/user/Workspace/Interaction_relation/final_model_json.json', 'r')
 loaded_model_json = json_file.read()
 json_file.close()
@@ -823,7 +611,7 @@ for i in range(idx):
     k1 = Face_layer_model.predict(temp_croped_head1)
     k2 = Face_layer_model.predict(temp_croped_head2)
 
-    merged = np.concatenate((k1,k2),axis=1)
+    merged = np.concatenate((k1, k2), axis=1)
 
     score1 = Relation1_model.predict(merged, verbose=0)
     score2 = Relation2_model.predict(merged, verbose=0)
