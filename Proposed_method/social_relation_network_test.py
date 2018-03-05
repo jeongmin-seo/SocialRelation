@@ -113,7 +113,7 @@ if __name__ == "__main__":
             input_image = Image.open(input_image_file_path).convert("L")
             # result container
             num_boxes = cur_box_info["bbox"].shape[0]
-            num_combinations = num_boxes * (num_boxes - 1)
+            num_combinations = int(num_boxes * (num_boxes - 1) / 2)  # nC2 = n * (n-1) / 2!
             relation_score_result = np.zeros((num_combinations, 2 + kNumRelations))
             combination_id = 0
             sys.stdout.write('')
@@ -124,20 +124,22 @@ if __name__ == "__main__":
                     # CNN feature extraction
                     head_feature_2 = get_head_feature(face_layer, input_image, cur_box_info["bbox"][idx2,:])
 
+                    # head ids
+                    relation_score_result[combination_id][0] = idx1
+                    relation_score_result[combination_id][1] = idx2
+
                     # relation score with concatenated feature
                     merged_feature = np.concatenate((head_feature_1, head_feature_2), axis=1)
                     for i in range(kNumRelations):
                         relation_score_result[combination_id][i+2] = rel_models[i].predict(merged_feature, verbose=0)
                     # container position increment
                     combination_id = combination_id + 1
-                    sys.stdout.flush()
-                    sys.stdout.write("  Proc on '%s'...[%03d/%03d]...[%03d/%03d]" % (input_image_file_path, file_id, num_files, combination_id, num_combinations))
+                    print("  Proc on '%s'...[%03d/%03d]...[%03d/%03d]" % (cur_box_info["file_name"], file_id+1, num_files, combination_id, num_combinations))
 
             # save scores
             save_file_path = os.path.join(result_save_dir, cur_box_info["file_name"] + ".csv")
             np.savetxt(save_file_path, relation_score_result, delimiter=",")
-            sys.stdout.flush()
-            sys.stdout.write("  Proc on '%s'...[%03d/%03d]...done!" % (input_image_file_path, file_id, num_files))
+            print("  Proc on '%s'...[%03d/%03d]...done!" % (cur_box_info["file_name"], file_id+1, num_files))
 
 
 #()()
