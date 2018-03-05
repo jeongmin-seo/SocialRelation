@@ -1,87 +1,144 @@
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import Flatten
-from keras.layers.convolutional import Conv2D
-from keras.layers.convolutional import Convolution2D
-from keras.layers.convolutional import MaxPooling2D
-from keras.layers.normalization import BatchNormalization
-from keras.layers import Merge, Input
-from keras.layers import merge
-from keras.layers.core import Dropout
-from keras.models import Model
-from keras.models import model_from_json
-
-from keras.utils import np_utils
-import scipy.io as sio
+from keras.models import Model, model_from_json
+from glob import glob
+from PIL import Image
 import numpy as np
-import keras.layers
 import os
+import sys
 
-from keras.utils.vis_utils import model_to_dot
-
-print('import packages complete')
 
 #########################################################
 # Pre-defines
 #########################################################
 kNumRelations = 8
-kRelationBasePath = '/home/user/Desktop/Workspace/relation'
-kInteractionBasePath = '/home/user/Desktop/Workspace/Interaction_relation'
-kHeadPairBasePath = '/home/user/Workspace/Interaction_relation/DATA/new/relation_case'
+kModelPath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/networks"
+kHeadInfoBasePath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/head_boxes/stanford"
+kInputImageBasePath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/images/stanford"
+kResultSavingPath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/relation_scores/stanford"
+# kCategoryNames = ["bus_stop", "cafeteria", "classroom", "conference", "library", "park"]
 
 
 #########################################################
 # PART. social relation predicting for grouping
 #########################################################
-def load_models(base_path=kInteractionBasePath):
+def load_models(base_path=kModelPath):
     # load final model
-    final_model_json_file = open(os.path.join(base_path, 'final_model_json.json'), 'r')
-    final_model_json = final_model_json_file.read()
-    final_model_json_file.close()
-    final_model = model_from_json(final_model_json)
-    final_model.load_weights(os.path.join(base_path, 'final_model.h5'))
+    # final_model_json_file = open(os.path.join(base_path, 'final_model_json.json'), 'r')
+    # final_model_json = final_model_json_file.read()
+    # final_model_json_file.close()
+    # final_model = model_from_json(final_model_json)
+    # final_model.load_weights(os.path.join(base_path, 'final_model.h5'))
 
     # expression model
-    exp_model_json_file = open(os.path.join(base_path, ''))
+    print("Loading expression model...", end='')
+    expression_model_json_file = open(os.path.join(base_path, "Expression_model.json"))
+    expression_model_json = expression_model_json_file.read()
+    expression_model_json_file.close()
+    expression_model = model_from_json(expression_model_json)
+    expression_model.load_weights(os.path.join(base_path, "Expression_model.h5"))
+    print("done!")
 
     relation_models = []
-    for model_id in range(kNumRelations):
-        model_json_file = open(os.path.join(base_path, 'Relation%d_model.json' % model_id))
+    print("Loading relation model...", end='')
+    for model_id in range(1, kNumRelations+1):
+        print("%d..." % model_id, end='')
+        model_json_file = open(os.path.join(base_path, "Relation%d_model.json" % model_id))
         model_json = model_json_file.read()
         model_json_file.close()
         loaded_model = model_from_json(model_json)
-        loaded_model.load_weights(os.path.join(base_path, 'Relation%d_model.h5' % model_id))
+        loaded_model.load_weights(os.path.join(base_path, "Relation%d_model.h5" % model_id))
         relation_models.append(loaded_model)
+    print("done!")
 
-    print("Loaded model from disk")
-    return final_model, relation_models
+    return expression_model, relation_models
 
 
-def load_head_pairs(path=kHeadPairBasePath):
-    file_name_list = os.listdir(path)
+def load_box_infos(path):
+    box_file_path_list = glob(os.path.join(path, "*.csv"))
+    box_infos = []
+    for cur_path in box_file_path_list:
+        bbox = np.loadtxt(open(cur_path, "rb"), delimiter=",", skiprows=1)
+        image_name = os.path.splitext(os.path.basename(cur_path))[0]
+        bbox_dict = dict(file_name=image_name, bbox=bbox)
+        box_infos.append(bbox_dict)
+    return box_infos
 
-idx = len(list_name)
-file_format = '_relation.mat'
 
-for i in range(idx):
-    temp_name = list_name[i]
-    temp_ind = temp_name.split('_')
-    temp_relation = '/home/user/Workspace/Interaction_relation/DATA/new/relation_case/' + temp_ind[0] + file_format
-    temp_raw_relation = sio.loadmat(temp_relation)
+def get_head_feature(feature_model, image, bbox, box_size=48):
+    x1 = max([0, bbox[0]])
+    x2 = min([image.size[0], bbox[0]+bbox[2]-1])
+    y1 = max([0, bbox[1]])
+    y2 = min([image.size[1], bbox[1]+bbox[3]-1])
+    crop_area = (x1, y1, x2, y2)
+    # crop head patch from input image
+    input_patch = np.array(image.crop(crop_area).resize((box_size, box_size), Image.NEAREST), dtype="uint8")
+    input_patch = input_patch.reshape((1, box_size, box_size, 1))
+    # predict with head patch
+    return feature_model.predict(input_patch)
 
-    temp_croped_head1 = temp_raw_relation['croped_head1']
-    temp_croped_head2 = temp_raw_relation['croped_head2']
 
-    k1 = Face_layer_model.predict(temp_croped_head1)
-    k2 = Face_layer_model.predict(temp_croped_head2)
+if __name__ == "__main__":
 
-    merged = np.concatenate((k1, k2), axis=1)
+    # read directories
+    category_names = [name for name in os.listdir(kHeadInfoBasePath)
+                      if os.path.isdir(os.path.join(kHeadInfoBasePath, name))]
 
-    score1 = Relation1_model.predict(merged, verbose=0)
-    score2 = Relation2_model.predict(merged, verbose=0)
-    score3 = Relation3_model.predict(merged, verbose=0)
-    score4 = Relation4_model.predict(merged, verbose=0)
-    score5 = Relation5_model.predict(merged, verbose=0)
-    score6 = Relation6_model.predict(merged, verbose=0)
-    score7 = Relation7_model.predict(merged, verbose=0)
-    score8 = Relation8_model.predict(merged, verbose=0)
+    # prepare models
+    expr_model, rel_models = load_models()
+    face_layer = Model(inputs=expr_model.input, outputs=expr_model.get_layer(index=22).output)
+
+    # read box info
+    for category_id, cur_category_name in enumerate(category_names):
+
+        # prepare base paths
+        print("Process on %s [%d/%d]..." % (cur_category_name, category_id, len(category_names)))
+        box_info_dir = os.path.join(kHeadInfoBasePath, cur_category_name)
+        input_image_dir = os.path.join(kInputImageBasePath, cur_category_name)
+        result_save_dir = os.path.join(kResultSavingPath, cur_category_name)
+        print("  box dir  : %s" % box_info_dir)
+        print("  image dir: %s" % input_image_dir)
+        print("  save dir : %s" % result_save_dir)
+
+        # make saving directory
+        if not os.path.exists(result_save_dir):
+            os.makedirs(result_save_dir)
+
+        # load box infos (of current category)
+        box_infos = load_box_infos(box_info_dir)
+        num_files = len(box_infos)
+
+        # ^ (head_id_1, head_id_2, relation_score_1, relation_score_2, ... )
+        for file_id, cur_box_info in enumerate(box_infos):
+            # load input image for head patch cropping
+            input_image_file_path = os.path.join(input_image_dir, cur_box_info["file_name"] + ".jpg")
+            input_image = Image.open(input_image_file_path).convert("L")
+            # result container
+            num_boxes = cur_box_info["bbox"].shape[0]
+            num_combinations = num_boxes * (num_boxes - 1)
+            relation_score_result = np.zeros((num_combinations, 2 + kNumRelations))
+            combination_id = 0
+            sys.stdout.write('')
+            for idx1 in range(num_boxes-1):
+                # CNN feature extraction
+                head_feature_1 = get_head_feature(face_layer, input_image, cur_box_info["bbox"][idx1,:])
+                for idx2 in range(idx1+1, num_boxes):
+                    # CNN feature extraction
+                    head_feature_2 = get_head_feature(face_layer, input_image, cur_box_info["bbox"][idx2,:])
+
+                    # relation score with concatenated feature
+                    merged_feature = np.concatenate((head_feature_1, head_feature_2), axis=1)
+                    for i in range(kNumRelations):
+                        relation_score_result[combination_id][i+2] = rel_models[i].predict(merged_feature, verbose=0)
+                    # container position increment
+                    combination_id = combination_id + 1
+                    sys.stdout.flush()
+                    sys.stdout.write("  Proc on '%s'...[%03d/%03d]...[%03d/%03d]" % (input_image_file_path, file_id, num_files, combination_id, num_combinations))
+
+            # save scores
+            save_file_path = os.path.join(result_save_dir, cur_box_info["file_name"] + ".csv")
+            np.savetxt(save_file_path, relation_score_result, delimiter=",")
+            sys.stdout.flush()
+            sys.stdout.write("  Proc on '%s'...[%03d/%03d]...done!" % (input_image_file_path, file_id, num_files))
+
+
+#()()
+#('')HAANJU.YOO
