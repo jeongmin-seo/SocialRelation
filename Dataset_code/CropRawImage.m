@@ -7,20 +7,29 @@
 % //created by 2017.06.28
 
 clear all;
+close all;
 
 %====================================================================
 % PREDEFINES
 %====================================================================
 
-% starting sample index
-kTargetImageStartIndex = 109;
+% cropping size
+kCropSize = 48;
 
 % input image file format
 kImageFormat = 'jpg';
 
+% category information
+kCategoryNames = {...
+    'bus_stop', 'cafeteria', 'classroom', 'conference', ...
+    'library', 'park', 'etc'};
+kTargetCategoryID = 3;
+
 % input path
-kImagePath = './rawdata';
-kBoxInfoPath = './box_results';
+kDatasetBasePath = 'D:/Workspace/Dataset/DKU_group_discovery/stanford_groupdataset_release';
+kImagePath = fullfile(kDatasetBasePath, 'images', kCategoryNames{kTargetCategoryID});
+kBoxInfoPath = fullfile(kDatasetBasePath, 'head_boxes', kCategoryNames{kTargetCategoryID});
+kPairSavePath = fullfile(kDatasetBasePath, 'head_pairs', kCategoryNames{kTargetCategoryID});
 kDepthInfoPath = 'new/Depth_GT';
 
 
@@ -38,7 +47,9 @@ box_info_file_list = dir(fullfile(kBoxInfoPath, '*.mat'));
 % image_file_list = image_file_list(3:end);
 % box_info_file_list = box_info_file_list(3:end);
 
-
+if ~isdir(kPairSavePath)
+    mkdir(kPairSavePath);
+end
 
 % imgForYaw=[];
 
@@ -76,68 +87,57 @@ box_info_file_list = dir(fullfile(kBoxInfoPath, '*.mat'));
 %====================================================================
 % HEAD CROPPING LOOP
 %====================================================================
-crop_file_name = '_relation.mat';
-
-
-num_head_files = length(box_info_file_list);
-for cur_box_info_file = box_info_file_list(kTargetImageStartIndex:end)
+for cur_box_info_file = {box_info_file_list(:).name}   
     
-    % read box information files for an input image
-    box_info_file_name = cur_box_info_file.name;
-    load(fullfile(kBoxInfoPath, box_info_file_name));  % <- bbox/ids is loaded
+    % load box info
+    box_file_name = cur_box_info_file{1};
+    load(fullfile(kBoxInfoPath, box_file_name));  % <- bbox/ids is loaded
+    num_boxes = size(bbox, 1);
+    bbox(:,end) = [];  % remove id
+    fprintf('File: %s (# of boxes=%d)\n', box_file_name, num_boxes);
     
-    [r1, c1] = size(bbox, 1);
+    % load input image and convert to grayscale
+    image_file_name = strrep(box_file_name, '.mat', '.jpg');    
+    img = imread(fullfile(kImagePath, image_file_name));
+    if 3 == size(img, 3)
+        img = rgb2gray(img);
+    end
+    [img_h, img_w] = size(img);
     
-    LabelData =[];
+    % make pairs indices
+    pair_ids = nchoosek(1:num_boxes, 2);
+    num_pairs = size(pair_ids, 1);
+    cropped_heads = cell(2, 1);
+    for i = 1:2
+        cropped_heads{i} = zeros(num_pairs, kCropSize^2);
+    end    
     
-    unique_ids = unique(ids);
-    [r2, c2] = size(unique_ids);
-    
-    % make inter case
-    Inter_case = nchoosek(unique_ids, 2);
-    [r3, c3] = size(Inter_case);
-    
-    %make temp variable
-    croped_head1 = [];
-    croped_head2 = [];
-    temp_croped_head1 = [];
-    temp_croped_head2 = [];
-    
-
-    img_num = strtok(box_info_file_name, '.jpg.mat');
-    temp_img_name = strcat(img_num, img_format);
-    img = imread(temp_img_name);
-    for N1 = 1:r3
-        
-        %get croping information(for indexing plus '1')
-        unique_idsx1 = bbox(Inter_case(N1,1)+1,1:end-1);
-        unique_idsx2 = bbox(Inter_case(N1,2)+1,1:end-1);
-        
-        %croping images
-        temp_croped_head1 = imcrop(img,unique_idsx1);
-        temp_croped_head2 = imcrop(img,unique_idsx2);
-        
-        [a11,b11,c11]=size(temp_croped_head1);
-        
-%         croped_head1 = [croped_head1; reshape(imresize(rgb2gray(temp_croped_head1),[48,48]),1,[])];
-%         croped_head2 = [croped_head2; reshape(imresize(rgb2gray(temp_croped_head2),[48,48]),1,[])];
-
-        
-        if c11 == 1
-            croped_head1 = [croped_head1; reshape(imresize(temp_croped_head1,[48,48]),1,[])];
-            croped_head2 = [croped_head2; reshape(imresize(temp_croped_head2,[48,48]),1,[])];
-        else
-            croped_head1 = [croped_head1; reshape(imresize(rgb2gray(temp_croped_head1),[48,48]),1,[])];
-            croped_head2 = [croped_head2; reshape(imresize(rgb2gray(temp_croped_head2),[48,48]),1,[])];
+    % crop heads
+    crop_size = [kCropSize, kCropSize];
+    for pIdx = 1:num_pairs        
+        for bIdx = 1:2
+            cur_box = bbox(pair_ids(pIdx,bIdx),:);
+            x = max(0, cur_box(1));
+            y = max(0, cur_box(2));
+            w = min(img_w-cur_box(1)+1, cur_box(3));
+            h = min(img_h-cur_box(2)+1, cur_box(4));
+            cropped_heads{bIdx}(pIdx,:) = ...
+                reshape(imresize(imcrop(img,[x,y,w,h]),crop_size),1,[]);
+            
+%             % for visualization
+%             temp = imresize(imcrop(img,[x,y,w,h]),crop_size);
+%             imshow(temp);            
         end
-        
-        save_name = strcat(img_num,crop_file_name);
-        
-        save (save_name,'croped_head1','croped_head2')
-        
     end
     
+    % leave typo for the convenience (compatibility with old codes)
+    croped_head1 = cropped_heads{1};
+    croped_head2 = cropped_heads{2};
     
+    % save results    
+    save(fullfile(kPairSavePath, ...
+        strrep(box_file_name, '.mat', '_relation.mat')), ...
+        'croped_head1', 'croped_head2');
 end
 
 
