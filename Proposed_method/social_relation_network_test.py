@@ -56,7 +56,7 @@ def load_box_infos(path):
     box_file_path_list = glob(os.path.join(path, "*.csv"))
     box_infos = []
     for cur_path in box_file_path_list:
-        bbox = np.loadtxt(open(cur_path, "rb"), delimiter=",", skiprows=1)
+        bbox = np.loadtxt(open(cur_path, "rb"), delimiter=",", skiprows=0)
         image_name = os.path.splitext(os.path.basename(cur_path))[0]
         bbox_dict = dict(file_name=image_name, bbox=bbox)
         box_infos.append(bbox_dict)
@@ -86,6 +86,13 @@ if __name__ == "__main__":
     expr_model, rel_models = load_models()
     face_layer = Model(inputs=expr_model.input, outputs=expr_model.get_layer(index=22).output)
 
+    # # output related
+    # result_csv_header = "head 1 id,head 2 id,"
+    # for relation_id in range(kNumRelations):
+    #     result_csv_header += "score %d"
+    #     if relation_id not is (kNumRelations - 1):
+    #         result_csv_header += ","
+
     # read box info
     for category_id, cur_category_name in enumerate(category_names):
 
@@ -111,12 +118,20 @@ if __name__ == "__main__":
             # load input image for head patch cropping
             input_image_file_path = os.path.join(input_image_dir, cur_box_info["file_name"] + ".jpg")
             input_image = Image.open(input_image_file_path).convert("L")
-            # result container
-            num_boxes = cur_box_info["bbox"].shape[0]
+
+            num_boxes = cur_box_info["bbox"].shape[0] if 1 < cur_box_info["bbox"].ndim else 1
             num_combinations = int(num_boxes * (num_boxes - 1) / 2)  # nC2 = n * (n-1) / 2!
+            print("  Proc on '%s'...[%03d/%03d] wih %03d combinations"
+                  % (cur_box_info["file_name"], file_id + 1, num_files, num_combinations))
+            if num_boxes < 2:
+                continue
+
+            # result container
+
             relation_score_result = np.zeros((num_combinations, 2 + kNumRelations))
             combination_id = 0
-            sys.stdout.write('')
+
+            # generate scores of each combination
             for idx1 in range(num_boxes-1):
                 # CNN feature extraction
                 head_feature_1 = get_head_feature(face_layer, input_image, cur_box_info["bbox"][idx1,:])
@@ -138,6 +153,7 @@ if __name__ == "__main__":
 
             # save scores
             save_file_path = os.path.join(result_save_dir, cur_box_info["file_name"] + ".csv")
+            # np.savetxt(save_file_path, relation_score_result, delimiter=",", header=result_csv_header)
             np.savetxt(save_file_path, relation_score_result, delimiter=",")
             print("  Proc on '%s'...[%03d/%03d]...done!" % (cur_box_info["file_name"], file_id+1, num_files))
 
