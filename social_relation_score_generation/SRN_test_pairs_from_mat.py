@@ -12,9 +12,10 @@ import scipy.io as sio
 # Pre-defines
 #########################################################
 kNumRelations = 8
-kModelPath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/networks"
-kHeadPairBasePath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/head_pairs"
-kResultSavingPath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/relation_scores/stanford"
+kWorkspacePath = "/home/mlpa/data_ssd/workspace"
+kModelPath = os.path.join(kWorkspacePath, "dataset/group_detection/networks")
+kHeadPairBasePath = os.path.join(kWorkspacePath, "dataset/group_detection/head_pairs")
+kResultSavingPath = os.path.join(kWorkspacePath, "dataset/group_detection/relation_scores/stanford")
 # kCategoryNames = ["bus_stop", "cafeteria", "classroom", "conference", "library", "park"]
 
 
