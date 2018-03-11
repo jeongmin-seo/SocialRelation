@@ -10,10 +10,11 @@ import sys
 # Pre-defines
 #########################################################
 kNumRelations = 8
-kModelPath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/networks"
-kHeadInfoBasePath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/head_boxes/stanford"
-kInputImageBasePath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/images/stanford"
-kResultSavingPath = "/home/mlpa/data_ssd/workspace/dataset/group_detection/relation_scores/stanford"
+kWorkspacePath = "/home/mlpa/data_ssd/workspace"
+kModelPath = os.path.join(kWorkspacePath, "dataset/group_detection/networks")
+kHeadInfoBasePath = os.path.join(kWorkspacePath, "dataset/group_detection/head_boxes/stanford")
+kInputImageBasePath = os.path.join(kWorkspacePath, "dataset/group_detection/images/stanford")
+kResultSavingPath = os.path.join(kWorkspacePath, "dataset/group_detection/relation_scores/stanford")
 # kCategoryNames = ["bus_stop", "cafeteria", "classroom", "conference", "library", "park"]
 
 
