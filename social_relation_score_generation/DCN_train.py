@@ -45,7 +45,7 @@ class MyCbk(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         cur_acc = logs.get('val_acc')
         if cur_acc > self.best_acc:
-            print('loss is improved')
+            print('accuracy is improved')
             self.best_acc = cur_acc
             self.model_to_save.save('dcn-improvement-epoch_%03d-val_acc_%.2f.h5' % (epoch, cur_acc))
 
@@ -107,6 +107,7 @@ def build_deep_conv_net():
 
     # layer 1, input size: 48 x 48 x 1
     deep_conv_net.add(Conv2D(64, 5, padding='same', activation='relu', input_shape=(48, 48, 1),
+                             kernel_initializer='glorot_normal',
                              kernel_regularizer=keras.regularizers.l2(0.01)))
     deep_conv_net.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
     deep_conv_net.add(BatchNormalization())
@@ -114,6 +115,7 @@ def build_deep_conv_net():
 
     # layer 2, input size: 24 x 24 x 64
     deep_conv_net.add(Conv2D(96, 5, padding='same', activation='relu',
+                             kernel_initializer='glorot_normal',
                              kernel_regularizer=keras.regularizers.l2(0.01)))
     deep_conv_net.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
     deep_conv_net.add(BatchNormalization())
@@ -121,6 +123,7 @@ def build_deep_conv_net():
 
     # layer 3, input size: 12 x 12 x 96
     deep_conv_net.add(Conv2D(256, 5, padding='same', activation='relu',
+                             kernel_initializer='glorot_normal',
                              kernel_regularizer=keras.regularizers.l2(0.01)))
     deep_conv_net.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
     deep_conv_net.add(BatchNormalization())
@@ -128,6 +131,7 @@ def build_deep_conv_net():
 
     # layer 4, input size: 6 x 6 x 256
     deep_conv_net.add(Conv2D(256, 5, padding='same', activation='relu',
+                             kernel_initializer='glorot_normal',
                              kernel_regularizer=keras.regularizers.l2(0.01)))
     deep_conv_net.add(BatchNormalization())
     deep_conv_net.add(Dropout(0.5))
@@ -135,6 +139,7 @@ def build_deep_conv_net():
     # layer 5, input size: 6 x 6 x 256
     deep_conv_net.add(Flatten())
     deep_conv_net.add(Dense(2048, activation='relu',
+                            kernel_initializer='glorot_normal',
                             kernel_regularizer=keras.regularizers.l2(0.01)))
     deep_conv_net.add(BatchNormalization())
     deep_conv_net.add(Dropout(0.5))
@@ -209,7 +214,7 @@ def train_DCN(dataset_path=os.path.join(kWorkspacePath, "dataset/Kaggle"), ngpu=
 if __name__ == "__main__":
 
     # train deep convolutional model
-    train_DCN()
+    train_DCN(ngpu=2)
 
     # # model weight update (TODO: have to be fixed (only 2 layers are saved rather than 10 layers)
     # model_path = os.path.join(kWorkspacePath, "dataset/Kaggle/dcn.h5")

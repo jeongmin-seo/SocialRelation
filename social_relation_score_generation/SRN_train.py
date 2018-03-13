@@ -161,12 +161,14 @@ def train_SRN(data_path=kRelationBasePath, save_path=kNetworkSavePath, ngpu=1):
     merged_vector = keras.layers.concatenate([feature_a, feature_b], axis=-1)
 
     # last layers
-    x = Dense(256, activation='relu')(merged_vector)
+    x = Dense(256, activation='relu', kernel_initializer='glorot_normal',
+              kernel_regularizer=keras.regularizers.l2(0.01))(merged_vector)
     x = BatchNormalization()(x)
     x = Dropout(0.5)(x)
     output_layers = []
     for i in range(kNumRelations):
-        output_layers.append(keras.layers.Dense(1, activation='sigmoid')(x))
+        output_layers.append(Dense(1, activation='sigmoid', kernel_initializer='glorot_normal',
+                                   kernel_regularizer=keras.regularizers.l2(0.01))(x))
 
     # overall model
     srn = Model(inputs=[face_a, face_b], outputs=output_layers)

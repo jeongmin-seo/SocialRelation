@@ -35,9 +35,9 @@ def save_scores(head_ids, sr_scores, save_path):
         writer = csv.writer(outfile)
 
         # write header
-        header_str = "id_1, id2"
+        header_str = "id_1, id_2"
         for relation_idx in range(1, kNumRelations+1):
-            header_str += ", score_%d" % relation_idx
+            header_str += ", sr_score_%d" % relation_idx
         outfile.write(header_str+"\n")
 
         # write data
