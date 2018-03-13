@@ -200,10 +200,17 @@ def train_SRN(data_path=kRelationBasePath, save_path=kNetworkSavePath, ngpu=1):
     srn.save(os.path.join(save_path, "srn.h5"))
 
 
+def test_SRN(model_path=os.path.join(kRelationBasePath, "srn.h5"), data_path=kNetworkSavePath):
+    srn = load_model(model_path)
+    x1_train, x2_train, y_train, x1_test, x2_test, y_test = load_data(data_path)
+    y_train_pred = srn.predict(x=[x1_train, x2_train])
+    y_test_pred = srn.predict(x=[x1_test, x2_test])
+    print("test done!")
+
 if __name__ == "__main__":
     # generate_npy_samples()
     train_SRN(ngpu=2)
-
+    # test_SRN(os.path.join(kRelationBasePath, "srn.h5"))
 
 # ()()
 # ('')HAANJU.YOO

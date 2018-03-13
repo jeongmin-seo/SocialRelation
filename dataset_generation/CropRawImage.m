@@ -23,13 +23,14 @@ kImageFormat = 'jpg';
 kCategoryNames = {...
     'bus_stop', 'cafeteria', 'classroom', 'conference', ...
     'library', 'park', 'etc'};
-kTargetCategoryID = 3;
+
+for kTargetCategoryID = 1:length(kCategoryNames)
 
 % input path
-kDatasetBasePath = 'D:/Workspace/Dataset/DKU_group_discovery/stanford_groupdataset_release';
-kImagePath = fullfile(kDatasetBasePath, 'images', kCategoryNames{kTargetCategoryID});
-kBoxInfoPath = fullfile(kDatasetBasePath, 'head_boxes', kCategoryNames{kTargetCategoryID});
-kPairSavePath = fullfile(kDatasetBasePath, 'head_pairs', kCategoryNames{kTargetCategoryID});
+kDatasetBasePath = 'D:/Workspace/Dataset/DKU_group_discovery';
+kImagePath = fullfile(kDatasetBasePath, 'image', kCategoryNames{kTargetCategoryID});
+kBoxInfoPath = fullfile(kDatasetBasePath, 'box', kCategoryNames{kTargetCategoryID});
+kPairSavePath = fullfile(kDatasetBasePath, 'head_pair_mat', kCategoryNames{kTargetCategoryID});
 kDepthInfoPath = 'new/Depth_GT';
 
 
@@ -129,15 +130,15 @@ for cur_box_info_file = {box_info_file_list(:).name}
 %             imshow(temp);            
         end
     end
-    
-    % leave typo for the convenience (compatibility with old codes)
-    croped_head1 = cropped_heads{1};
-    croped_head2 = cropped_heads{2};
+    head_1 = cropped_heads{1};
+    head_2 = cropped_heads{2};
     
     % save results    
     save(fullfile(kPairSavePath, ...
         strrep(box_file_name, '.mat', '_relation.mat')), ...
-        'croped_head1', 'croped_head2');
+        'head_1', 'head_2', 'pair_ids');
+end
+
 end
 
 
