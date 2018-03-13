@@ -1,6 +1,6 @@
-# Relation Network Training Code
+# Training Code of Deep Convoluational Network for Expression
 # Ver. Keras
-# 2018.03.07 - modified by Haanju Yoo -
+# 2018.03.13 - by Haanju Yoo -
 
 #########################################################
 # LOAD PACKAGES
@@ -8,13 +8,14 @@
 import os
 import csv
 import numpy as np
-import scipy.io as sio
 import keras.layers
-from keras.models import Sequential, Model, model_from_json
-from keras.layers import Dense, Flatten, Input
+from keras.models import Sequential, load_model
+from keras.layers import Dense, Flatten
 from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.layers.core import Dropout
+from keras.utils import multi_gpu_model
+from keras.callbacks import ModelCheckpoint
 from keras import losses
 
 
@@ -24,19 +25,33 @@ from keras import losses
 kNumRelations = 8
 kWorkspacePath = "/home/mlpa/data_ssd/workspace"
 kNetworkSavePath = os.path.join(kWorkspacePath, "dataset/group_detection/networks")
-
-kRelationBasePath = '/home/user/Desktop/Workspace/relation'
-kInteractionBasePath = '/home/user/Desktop/Workspace/Interaction_relation'
+kProjectPath = os.path.join(kWorkspacePath, "github/SocialRelation")
 
 
 #########################################################
-# TENSOR BOARD
+# CALLBACKS
 #########################################################
-tbCallBack = keras.callbacks.TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
+tbCallBack = keras.callbacks.TensorBoard(log_dir=os.path.join(kProjectPath, 'logs'),
+                                         histogram_freq=0, write_graph=True, write_images=True)
+
+
+# custom call back class (needed for multi-gpu)
+class MyCbk(keras.callbacks.Callback):
+    def __init__(self, model):
+        super(MyCbk, self).__init__()
+        self.model_to_save = model
+        self.best_acc = 0
+
+    def on_epoch_end(self, epoch, logs=None):
+        cur_acc = logs.get('val_acc')
+        if cur_acc > self.best_acc:
+            print('loss is improved')
+            self.best_acc = cur_acc
+            self.model_to_save.save('dcn-improvement-epoch_%03d-val_acc_%.2f.h5' % (epoch, cur_acc))
 
 
 #########################################################
-# DATA LOADING
+# DATA HANDLING
 #########################################################
 def load_Kaggle_dataset(base_path, read_npy=True):
     if read_npy and os.path.isfile(os.path.join(base_path, "x_train.npy")):
@@ -148,33 +163,59 @@ def save_models(final_model, expression_model, relation_models):
     print("All models are saved")
 
 
+def save_model_with_weights(model_path, weight_path, save_path):
+    model = load_model(model_path)
+    model.load_weights(weight_path)
+    model.save(save_path)
+
+
 #########################################################
 # MODEL TRAINING
 #########################################################
-def train_DCN(dataset_path="dataset/Kaggle"):
+def train_DCN(dataset_path=os.path.join(kWorkspacePath, "dataset/Kaggle"), ngpu=1):
 
     # model consctruction
     dcn = build_deep_conv_net()
     expression_net = Sequential()
     expression_net.add(dcn)
     expression_net.add(Dense(7, activation='sigmoid'))
-    # model_optimizer = keras.optimizers.Adam(
-    #     lr=1e-4, beta_1=0.99, beta_2=0.99, epsilon=1e-08, decay=1e-4)
-    expression_net.compile(optimizer='sgd',
-                           loss=losses.binary_crossentropy,
-                           metrics=['accuracy'])
 
     # training
-    x_train, y_train, x_test, y_test = load_Kaggle_dataset(os.path.join(kWorkspacePath, dataset_path))
-    expression_net.fit(x=x_train, y=y_train, validation_data=(x_test, y_test),
-                       batch_size=120, epochs=400, verbose=1, callbacks=[tbCallBack])
+    x_train, y_train, x_test, y_test = load_Kaggle_dataset(dataset_path)
+
+    model_optimizer = keras.optimizers.Adam(
+        lr=1e-4, beta_1=0.99, beta_2=0.99, epsilon=1e-08, decay=1e-4)
+    callbacks_list = [tbCallBack, MyCbk(dcn)]
+
+    if ngpu > 1:
+        parallel_net = multi_gpu_model(expression_net, gpus=ngpu)
+        parallel_net.compile(optimizer=model_optimizer,
+                             loss=losses.categorical_crossentropy,
+                             metrics=['accuracy'])
+        parallel_net.fit(x=x_train, y=y_train, validation_data=(x_test, y_test),
+                         batch_size=120, epochs=600, verbose=1, callbacks=callbacks_list)
+    else:
+        expression_net.compile(optimizer=model_optimizer,
+                               loss=losses.categorical_crossentropy,
+                               metrics=['accuracy'])
+        expression_net.fit(x=x_train, y=y_train, validation_data=(x_test, y_test),
+                           batch_size=120, epochs=600, verbose=1, callbacks=callbacks_list)
 
     # save model
-    save_model_to_json(os.path.join(dataset_path, "DCN.json"), expression_net)
+    dcn.save(os.path.join(dataset_path, "dcn.h5"))
+    expression_net.save(os.path.join(dataset_path, "expression_net.h5"))
+    # save_model_to_json(os.path.join(dataset_path, "DCN.json"), expression_net)
 
 if __name__ == "__main__":
+
+    # train deep convolutional model
     train_DCN()
 
+    # # model weight update (TODO: have to be fixed (only 2 layers are saved rather than 10 layers)
+    # model_path = os.path.join(kWorkspacePath, "dataset/Kaggle/dcn.h5")
+    # weight_path = os.path.join(kWorkspacePath, "dataset/Kaggle/weights-improvement-213-0.61.h5")
+    # save_model_with_weights(model_path, weight_path, model_path)
 
-#()()
-#('')HAANJU.YOO
+
+# ()()
+# ('')HAANJU.YOO
