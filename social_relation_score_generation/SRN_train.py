@@ -45,7 +45,7 @@ kNetworkSavePath = os.path.join(kWorkspacePath, "experimental_result/interaction
 
 kSampleSetNames = ["training", "testing"]
 
-kMinimumEpochForSaveNetwork = 100
+kMinimumEpochForSaveNetwork = 10
 
 
 #########################################################
@@ -55,7 +55,7 @@ class MyCbk(keras.callbacks.Callback):
     def __init__(self, model):
         super(MyCbk, self).__init__()
         self.model_to_save = model
-        self.best_loss = 0
+        self.best_acc = 0
         pass
 
     def on_epoch_end(self, epoch, logs=None):
@@ -63,11 +63,11 @@ class MyCbk(keras.callbacks.Callback):
         if kMinimumEpochForSaveNetwork > epoch:
             return
 
-        cur_loss = logs.get('val_loss')
-        if 0 == self.best_loss or self.best_loss > cur_loss:
-            print('validation loss is improved')
-            self.best_loss = cur_loss
-            self.model_to_save.save('srn-improvement-epoch_%03d-loss_%.2f.h5' % (epoch, cur_loss))
+        cur_acc = logs.get('val_acc')
+        if 0 == self.best_loss or self.best_loss > cur_acc:
+            print('validation accuracy is improved')
+            self.best_acc = cur_acc
+            self.model_to_save.save('srn-improvement-epoch_%03d-acc_%.2f.h5' % (epoch, cur_acc))
         pass
 
 
