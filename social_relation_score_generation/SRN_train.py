@@ -45,6 +45,7 @@ kNetworkSavePath = os.path.join(kWorkspacePath, "experimental_result/interaction
 
 kSampleSetNames = ["training", "testing"]
 
+kEpochs = 2000
 kMinimumEpochForSaveNetwork = 10
 
 
@@ -52,10 +53,11 @@ kMinimumEpochForSaveNetwork = 10
 # CALLBACKS
 #########################################################
 class MyCbk(keras.callbacks.Callback):
-    def __init__(self, model):
+    def __init__(self, model, save_path):
         super(MyCbk, self).__init__()
         self.model_to_save = model
         self.best_acc = 0
+        self.save_path = save_path
         pass
 
     def on_epoch_end(self, epoch, logs=None):
@@ -67,7 +69,8 @@ class MyCbk(keras.callbacks.Callback):
         if 0 == self.best_loss or self.best_loss > cur_acc:
             print('validation accuracy is improved')
             self.best_acc = cur_acc
-            self.model_to_save.save('srn-improvement-epoch_%03d-acc_%.2f.h5' % (epoch, cur_acc))
+            self.model_to_save.save(
+                os.path.join(self.save_path, 'srn-improvement-epoch_%03d-acc_%.2f.h5' % (epoch, cur_acc)))
         pass
 
 
@@ -194,7 +197,7 @@ def train_SRN(data_path=kRelationBasePath, save_path=kNetworkSavePath, ngpu=1):
 
     # overall model
     srn = Model(inputs=[face_a, face_b, spatial_cue], outputs=relations)
-    callbacks_list = [tbCallBack, MyCbk(srn)]
+    callbacks_list = [tbCallBack, MyCbk(srn, kNetworkSavePath)]
 
     # data preperation
     x1_train, x2_train, y_train, sc_train = load_data(data_path, kSampleSetNames[0])
@@ -209,12 +212,12 @@ def train_SRN(data_path=kRelationBasePath, save_path=kNetworkSavePath, ngpu=1):
         srn_parallel.compile(optimizer=model_optimizer, loss=keras.losses.binary_crossentropy, metrics=['accuracy'])
         srn_parallel.fit(x=[x1_train, x2_train, sc_train], y=y_train,
                          validation_data=([x1_test, x2_test, sc_test], y_test),
-                         batch_size=120, epochs=600, verbose=1, callbacks=callbacks_list)
+                         batch_size=120, epochs=kEpochs, verbose=1, callbacks=callbacks_list)
     else:
         srn.compile(optimizer=model_optimizer, loss=keras.losses.binary_crossentropy, metrics=['accuracy'])
         srn.fit(x=[x1_train, x2_train, sc_train], y=y_train,
                 validation_data=([x1_test, x2_test, sc_test], y_test),
-                batch_size=120, epochs=600, verbose=1, callbacks=callbacks_list)
+                batch_size=120, epochs=kEpochs, verbose=1, callbacks=callbacks_list)
 
     # save final result
     srn.save(os.path.join(save_path, "srn.h5"))
