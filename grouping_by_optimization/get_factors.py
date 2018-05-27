@@ -7,8 +7,10 @@ import csv
 from numpy import linalg as LA
 from scipy.special import comb
 
-kBoxInfoDirPath = '/home/mlpa/data_ssd/workspace/dataset/interacting_group_detection/ground_truth'
-kFactorSavePath = 'factors'
+kWorkspacePath = "/home/mlpa/Workspace"
+kBoxInfoDirPath = os.path.join(kWorkspacePath, "dataset/interacting_group_detection/ground_truth")
+kResultPath = os.path.join(kWorkspacePath, "experimental_result/interaction_group_detection")
+kFactorSavePath = os.path.join(kResultPath, "geometric_factors")
 
 
 def get_geometric_factors(_bbox):
@@ -62,17 +64,11 @@ if "__main__" == __name__:
         for i, gt_file_path in enumerate(gt_file_path_list):
             mat = scipy.io.loadmat(gt_file_path)
             bbox = np.array(mat['bbox'])
-
             geo_factors = get_geometric_factors(bbox)
-            sr_scores = np.zeros((geo_factors.shape[0], 8))
-            data = np.concatenate((geo_factors, sr_scores), axis=1)
-
             with open(os.path.join(kFactorSavePath, os.path.basename(gt_file_path).replace(".mat", ".csv")), 'w', newline='\n') as f:
                 w = csv.writer(f)
-                w.writerow(['id_1', 'id_2', 'delta', 'scale_ratio',
-                          'sr_score_1', 'sr_score_2', 'sr_score_3', 'sr_score_4',
-                          'sr_score_5', 'sr_score_6', 'sr_score_7', 'sr_score_8'])
-                w.writerows(data)
+                w.writerow(['id_1', 'id_2', 'delta', 'scale_ratio'])
+                w.writerows(geo_factors)
 
             bar.update(i)
 

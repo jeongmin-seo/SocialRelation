@@ -4,12 +4,14 @@ import os
 import glob
 import progressbar
 from PIL import Image
+from scipy.special import comb
 
 #########################################################
 # Pre-defines
 #########################################################
 kNumRelations = 8
 kInputSize = 48
+kSizeSpatialCue = 11
 kWorkspacePath = "/home/mlpa/Workspace"
 kDatasetPath = os.path.join(kWorkspacePath, "dataset/interacting_group_detection")
 kSavePath = os.path.join(kDatasetPath, "pair_samples")
@@ -40,7 +42,7 @@ if "__main__" == __name__:
         print("Saving path: %s\n" % os.path.abspath(kSavePath))
 
     print("Generate samples from %d images\n" % num_images)
-    x1s, x2s, spatial_cues = [], [], []
+    num_total_pairs = 0
     with progressbar.ProgressBar(max_value=num_images) as bar:
         for i, image_path in enumerate(image_file_paths):
 
@@ -69,36 +71,44 @@ if "__main__" == __name__:
                                        bbox[b_idx, 2] / image_width, bbox[b_idx, 3] / image_height])
 
             # generate pairs
+            num_pairs = int(comb(num_boxes, 2))
+            num_total_pairs += num_pairs
+            x1s, x2s, spatial_cues, pair_ids = [], [], [], []
             for b_idx_1 in range(0, num_boxes - 1):
                 for b_idx_2 in range(b_idx_1 + 1, num_boxes):
 
+                    # pair ids
+                    pair_ids.append(np.expand_dims([b_idx_1, b_idx_2], axis=0))
+
+                    # head patches
                     if bbox[b_idx_1][0] < bbox[b_idx_2][0]:
                         left, right = b_idx_1, b_idx_2
                     else:
                         left, right = b_idx_2, b_idx_1
-
                     x1s.append(head_images[left])
                     x2s.append(head_images[right])
 
+                    # spatial cue
                     rel_x_diff = (relative_boxes[left][0] - relative_boxes[right][0]) / relative_boxes[left][2]
                     rel_y_diff = (relative_boxes[left][1] - relative_boxes[right][1]) / relative_boxes[left][3]
                     rel_size_diff = relative_boxes[left][3] / relative_boxes[right][3]
                     spatial_cue = relative_boxes[left] + relative_boxes[right] + [rel_x_diff, rel_y_diff, rel_size_diff]
                     spatial_cues.append(np.expand_dims(spatial_cue, axis=0))
 
+            # save
+            x1s = np.concatenate(x1s, axis=0)
+            x2s = np.concatenate(x2s, axis=0)
+            spatial_cues = np.concatenate(spatial_cues, axis=0)
+            pair_ids = np.concatenate(pair_ids, axis=0)
+
+            image_name = os.path.basename(image_path).replace(".jpg", "")
+            np.save(os.path.join(kSavePath, "%s_x1s.npy" % image_name), x1s)
+            np.save(os.path.join(kSavePath, "%s_x2s.npy" % image_name), x2s)
+            np.save(os.path.join(kSavePath, "%s_scs.npy" % image_name), spatial_cues)
+            np.save(os.path.join(kSavePath, "%s_ids.npy" % image_name), pair_ids)
+
             bar.update(i)
 
-    # save
-    print("Reformatting samples...\n")
-    x1s = np.concatenate(x1s, axis=0)
-    x2s = np.concatenate(x2s, axis=0)
-    spatial_cues = np.concatenate(spatial_cues, axis=0)
-
-    print("Save samples...\n")
-    np.save(os.path.join(kSavePath, "x1s.npy"), x1s)
-    np.save(os.path.join(kSavePath, "x2s.npy"), x2s)
-    np.save(os.path.join(kSavePath, "scs.npy"), spatial_cues)
-
-    print("Done! Total %d samples are generated\n" % spatial_cues.shape[0])
+    print("Done!\nTotal %d samples are generated\n" % num_total_pairs)
 
     pass
