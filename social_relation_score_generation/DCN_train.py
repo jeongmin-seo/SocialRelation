@@ -24,7 +24,7 @@ from keras import losses
 #########################################################
 kNumRelations = 8
 kWorkspacePath = "/home/mlpa/data_ssd/workspace"
-kNetworkSavePath = os.path.join(kWorkspacePath, "dataset/group_detection/networks")
+kNetworkSavePath = os.path.join(kWorkspacePath, "experimental_result/interaction_group_detection/trained_networks")
 kProjectPath = os.path.join(kWorkspacePath, "github/SocialRelation")
 
 
