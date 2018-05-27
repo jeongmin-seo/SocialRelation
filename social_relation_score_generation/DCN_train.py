@@ -23,9 +23,11 @@ from keras import losses
 # PRE-DEFINES
 #########################################################
 kNumRelations = 8
-kWorkspacePath = "/home/mlpa/data_ssd/workspace"
+kWorkspacePath = "/home/mlpa/Workspace"
 kNetworkSavePath = os.path.join(kWorkspacePath, "experimental_result/interaction_group_detection/trained_networks")
 kProjectPath = os.path.join(kWorkspacePath, "github/SocialRelation")
+
+kEpochs = 2000
 
 
 #########################################################
@@ -37,17 +39,19 @@ tbCallBack = keras.callbacks.TensorBoard(log_dir=os.path.join(kProjectPath, 'log
 
 # custom call back class (needed for multi-gpu)
 class MyCbk(keras.callbacks.Callback):
-    def __init__(self, model):
+    def __init__(self, model, save_path):
         super(MyCbk, self).__init__()
         self.model_to_save = model
         self.best_acc = 0
+        self.save_path = save_path
 
     def on_epoch_end(self, epoch, logs=None):
         cur_acc = logs.get('val_acc')
         if cur_acc > self.best_acc:
             print('accuracy is improved')
             self.best_acc = cur_acc
-            self.model_to_save.save('dcn-improvement-epoch_%03d-val_acc_%.2f.h5' % (epoch, cur_acc))
+            self.model_to_save.save(
+                os.path.join(self.save_path, 'dcn-improvement-epoch_%03d-val_acc_%.2f.h5' % (epoch, cur_acc)))
 
 
 #########################################################
@@ -190,7 +194,7 @@ def train_DCN(dataset_path=os.path.join(kWorkspacePath, "dataset/Kaggle"), ngpu=
 
     model_optimizer = keras.optimizers.Adam(
         lr=1e-4, beta_1=0.99, beta_2=0.99, epsilon=1e-08, decay=1e-4)
-    callbacks_list = [tbCallBack, MyCbk(dcn)]
+    callbacks_list = [tbCallBack, MyCbk(dcn, kNetworkSavePath)]
 
     if ngpu > 1:
         parallel_net = multi_gpu_model(expression_net, gpus=ngpu)
@@ -198,13 +202,13 @@ def train_DCN(dataset_path=os.path.join(kWorkspacePath, "dataset/Kaggle"), ngpu=
                              loss=losses.categorical_crossentropy,
                              metrics=['accuracy'])
         parallel_net.fit(x=x_train, y=y_train, validation_data=(x_test, y_test),
-                         batch_size=120, epochs=600, verbose=1, callbacks=callbacks_list)
+                         batch_size=120, epochs=kEpochs, verbose=1, callbacks=callbacks_list)
     else:
         expression_net.compile(optimizer=model_optimizer,
                                loss=losses.categorical_crossentropy,
                                metrics=['accuracy'])
         expression_net.fit(x=x_train, y=y_train, validation_data=(x_test, y_test),
-                           batch_size=120, epochs=600, verbose=1, callbacks=callbacks_list)
+                           batch_size=120, epochs=kEpochs, verbose=1, callbacks=callbacks_list)
 
     # save model
     dcn.save(os.path.join(dataset_path, "dcn.h5"))
@@ -214,7 +218,7 @@ def train_DCN(dataset_path=os.path.join(kWorkspacePath, "dataset/Kaggle"), ngpu=
 if __name__ == "__main__":
 
     # train deep convolutional model
-    train_DCN(ngpu=2)
+    train_DCN(ngpu=1)
 
     # # model weight update (TODO: have to be fixed (only 2 layers are saved rather than 10 layers)
     # model_path = os.path.join(kWorkspacePath, "dataset/Kaggle/dcn.h5")
