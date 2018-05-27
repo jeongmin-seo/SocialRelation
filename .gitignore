@@ -62,3 +62,7 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# temporary files
+grouping_by_optimization/factors
+logs
