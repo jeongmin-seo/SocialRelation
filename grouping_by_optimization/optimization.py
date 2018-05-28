@@ -82,9 +82,22 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
 
     num_groups = len(group_scores)
     print("Total %d effective groups\n" % num_groups)
+    grouping_result = []
+
+    if 0 == num_groups:
+        save_grouping_result(grouping_result, os.path.join(kGroupSavePath, image_name + '.txt'))
+
+        # logging
+        with open(os.path.join(kGroupSavePath, image_name + "_log.txt"), "w") as text_file:
+            text_file.write("num faces: %d\n" % int(geo_factors[-1][1]))
+            text_file.write("num candidate groups: %d\n" % num_groups)
+            text_file.write("num constraints: %d\n" % 0)
+            text_file.write("model construction time: %f\n" % 0)
+            text_file.write("solving time: %f\n" % 0)
+
+        return grouping_result
 
     # grouping with optimization
-    grouping_result = []
     try:
 
         # Create a new model
