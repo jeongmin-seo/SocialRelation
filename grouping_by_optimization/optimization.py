@@ -145,6 +145,8 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
 
         print('Obj:', grb_model.objVal)
 
+        grouping_result = result_packaging(grouping_result)
+
         save_grouping_result(grouping_result, os.path.join(kGroupSavePath, image_name + '.txt'))
 
         # logging
@@ -162,11 +164,24 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
     return grouping_result
 
 
+def result_packaging(_result_groups, _num_heads):
+    new_result = [group for group in _result_groups]
+    for head_idx in range(_num_heads):
+        is_found = False
+        for group in _result_groups:
+            if head_idx in group:
+                is_found = True
+                break
+        if not is_found:
+            new_result.append(set([head_idx]))
+    return new_result
+
+
 def save_grouping_result(_groups, _save_path):
     with open(_save_path, "w") as text_file:
         for group in _groups:
             for head in group['head_ids']:
-                text_file.write("%d," % head)
+                text_file.write("%d " % head)
             text_file.write("\n")
 
 
