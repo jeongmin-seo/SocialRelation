@@ -113,7 +113,9 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
         grb_model.setObjective(obj, GRB.MAXIMIZE)
 
         # Add constraints
+        global incompatible_group_ids
         threads = []
+        incompatible_group_ids = []
         for g_idx_1 in range(num_groups-1):
             t = threading.Thread(target=thread_task, args=(effective_groups, g_idx_1, g_idx_1+1, num_groups))
             t.daemon = True
