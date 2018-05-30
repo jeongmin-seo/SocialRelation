@@ -147,7 +147,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
 
         print('Obj:', grb_model.objVal)
 
-        grouping_result = result_packaging(grouping_result)
+        grouping_result = result_packaging(grouping_result, num_faces)
 
         save_grouping_result(grouping_result, os.path.join(kGroupSavePath, image_name + '.txt'))
 
@@ -158,7 +158,6 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
             text_file.write("num constraints: %d\n" % num_consts)
             text_file.write("model construction time: %f\n" % (time_const_opt_end - time_const_opt_start))
             text_file.write("solving time: %f\n" % (time_solve_end - time_const_opt_end))
-
 
     except GurobiError:
         print('Error reported')
