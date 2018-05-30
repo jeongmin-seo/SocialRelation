@@ -12,6 +12,7 @@ import threading
 
 kLambda = 0.8
 kTheta = 2.2
+kBias = 1.0
 
 kNumRelations = 8
 kWorkspacePath = "/home/mlpa/Workspace"
@@ -42,7 +43,7 @@ def thread_task(_groups, _target_id, _comparing_start, _comparing_end):
     # print("Thread for %d group is done\n" % _target_id)
 
 
-def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
+def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias):
 
     time_const_opt_start = time.time()
 
@@ -55,6 +56,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
         geo_factors = []
         for row in reader:
             geo_factors.append([float(x) for x in row])
+    num_faces = int(geo_factors[-1][1]) + 1
 
     # load social relational scores
     with open(os.path.join(kSRScorePath, image_name + ".csv")) as csvfile:
@@ -74,7 +76,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
     effective_groups = []
     with progressbar.ProgressBar(max_value=num_groups) as get_score_bar:
         for g_i, group in enumerate(candidata_groups):
-            cur_score = get_group_score(group['pair_pos'], geo_factors, sr_scores, _lambda)
+            cur_score = get_group_score(group['pair_pos'], geo_factors, sr_scores, _lambda, _bias)
             if 0.0 <= cur_score:
                 effective_groups.append(group)
                 group_scores.append(cur_score)
@@ -89,7 +91,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
 
         # logging
         with open(os.path.join(kGroupSavePath, image_name + "_log.txt"), "w") as text_file:
-            text_file.write("num faces: %d\n" % int(geo_factors[-1][1]))
+            text_file.write("num faces: %d\n" % num_faces)
             text_file.write("num candidate groups: %d\n" % num_groups)
             text_file.write("num constraints: %d\n" % 0)
             text_file.write("model construction time: %f\n" % 0)
@@ -151,7 +153,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda):
 
         # logging
         with open(os.path.join(kGroupSavePath, image_name + "_log.txt"), "w") as text_file:
-            text_file.write("num faces: %d\n" % int(geo_factors[-1][1]))
+            text_file.write("num faces: %d\n" % num_faces)
             text_file.write("num candidate groups: %d\n" % num_groups)
             text_file.write("num constraints: %d\n" % num_consts)
             text_file.write("model construction time: %f\n" % (time_const_opt_end - time_const_opt_start))
@@ -207,7 +209,7 @@ def disjoint_sorted_list(list1, list2):
 
 def get_candidate_groups(_geo_factors, _theta):
 
-    num_heads = int(_geo_factors[-1][1])
+    num_heads = int(_geo_factors[-1][1]) + 1
     head_sets = []
 
     # find invalid pairs
@@ -258,7 +260,7 @@ def get_pair_pos(id1, id2, num_heads):
     return int(num_heads * id1 - (id1 * (id1 + 1)) / 2 + id2 - id1 - 1)
 
 
-def get_group_score(_pair_pos_set, _geo_factors, _sr_scores, _lambda):
+def get_group_score(_pair_pos_set, _geo_factors, _sr_scores, _lambda, _bias):
     # calculate group score
     geometric_score = 0
     social_relation_score = 0
@@ -267,7 +269,7 @@ def get_group_score(_pair_pos_set, _geo_factors, _sr_scores, _lambda):
         social_relation_score += np.sum(_sr_scores[pair_id][2:])  # [id1, id2, sr1, sr2, ...] in sr_scores
     social_relation_score = log(social_relation_score)  # eq.7
 
-    return _lambda * geometric_score + (1.0 - _lambda) * social_relation_score
+    return _lambda * geometric_score + (1.0 - _lambda) * social_relation_score + _bias
 
 
 if "__main__" == __name__:
@@ -282,4 +284,4 @@ if "__main__" == __name__:
 
     for i, image_path in enumerate(image_list):
         print(">> Find groups in %s ... [%03d/%03d]\n" % (os.path.basename(image_path), i, num_images))
-        groups = construct_and_solve_optimization_problem(image_path, kTheta, kLambda)
+        groups = construct_and_solve_optimization_problem(image_path, kTheta, kLambda, kBias)
