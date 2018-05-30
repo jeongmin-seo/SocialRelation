@@ -71,7 +71,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
     num_groups = len(candidata_groups)
 
     # get group scores
-    print("Get scores of %d groups\n" % num_groups)
+    print("Get scores of %d groups..." % num_groups)
     group_scores = []
     effective_groups = []
     with progressbar.ProgressBar(max_value=num_groups) as get_score_bar:
@@ -83,7 +83,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
             get_score_bar.update(g_i)
 
     num_groups = len(group_scores)
-    print("Total %d effective groups\n" % num_groups)
+    print("Total %d effective groups" % num_groups)
     grouping_result = []
 
     if 0 == num_groups:
@@ -128,7 +128,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
             t.join()
 
         num_consts = len(incompatible_group_ids)
-        print("Add %d constratins to the model\n" % num_consts)
+        print("Add %d constratins to the model..." % num_consts)
         with progressbar.ProgressBar(max_value=num_consts) as const_bar:
             for ip_i, pair in enumerate(incompatible_group_ids):
                 grb_model.addConstr(grb_vars[pair[0]] + grb_vars[pair[1]] <= 1, "c_%d" % ip_i)
@@ -136,7 +136,7 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
 
         time_const_opt_end = time.time()
 
-        print("Start optimization...\n")
+        print("Start optimization...")
         grb_model.optimize()
 
         time_solve_end = time.time()
@@ -147,9 +147,10 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
 
         print('Obj:', grb_model.objVal)
 
-        grouping_result = result_packaging(grouping_result, num_faces)
-
-        save_grouping_result(grouping_result, os.path.join(kGroupSavePath, image_name + '.txt'))
+        # save grouping result
+        head_id_groups = result_packaging(grouping_result, num_faces)
+        save_grouping_result(head_id_groups, os.path.join(kGroupSavePath, image_name + '.txt'))
+        print(head_id_groups)
 
         # logging
         with open(os.path.join(kGroupSavePath, image_name + "_log.txt"), "w") as text_file:
@@ -166,11 +167,11 @@ def construct_and_solve_optimization_problem(_image_path, _theta, _lambda, _bias
 
 
 def result_packaging(_result_groups, _num_heads):
-    new_result = [group for group in _result_groups]
+    new_result = [group['head_ids'] for group in _result_groups]
     for head_idx in range(_num_heads):
         is_found = False
         for group in _result_groups:
-            if head_idx in group:
+            if head_idx in group['head_ids']:
                 is_found = True
                 break
         if not is_found:
@@ -178,11 +179,18 @@ def result_packaging(_result_groups, _num_heads):
     return new_result
 
 
+def print_result(_groups):
+    for head_ids in _groups:
+        for head_id in head_ids:
+            print("%d ", head_id)
+        print("| ")
+
+
 def save_grouping_result(_groups, _save_path):
     with open(_save_path, "w") as text_file:
         for group in _groups:
-            for head in group['head_ids']:
-                text_file.write("%d " % head)
+            for head_id in group:
+                text_file.write("%d " % head_id)
             text_file.write("\n")
 
 
@@ -217,7 +225,7 @@ def get_candidate_groups(_geo_factors, _theta):
         if factor[3] > _theta:
             invalid_pairs.append((factor[0], factor[1]))
 
-    print("Generate candidate groups with %d heads\n" % num_heads)
+    print("Generate candidate groups with %d heads..." % num_heads)
     with progressbar.ProgressBar(max_value=pow(2, num_heads)-1) as gen_group_bar:
         for set_i, subset in enumerate(all_subsets(list(range(0, num_heads)))):
 
@@ -274,7 +282,7 @@ def get_group_score(_pair_pos_set, _geo_factors, _sr_scores, _lambda, _bias):
 if "__main__" == __name__:
 
     # read image list
-    image_list = glob.glob(os.path.join(kDatasetPath, "image/*.jpg"))
+    image_list = sorted(glob.glob(os.path.join(kDatasetPath, "image/*.jpg")))
     num_images = len(image_list)
 
     # make saving folder
@@ -282,5 +290,5 @@ if "__main__" == __name__:
         os.makedirs(kGroupSavePath)
 
     for i, image_path in enumerate(image_list):
-        print(">> Find groups in %s ... [%03d/%03d]\n" % (os.path.basename(image_path), i, num_images))
+        print(">> Find groups in %s ... [%03d/%03d]" % (os.path.basename(image_path), i, num_images))
         groups = construct_and_solve_optimization_problem(image_path, kTheta, kLambda, kBias)
